@@ -13,7 +13,7 @@ const rideRoutes = require('./routes/ride.routes');
 connectToDb();
 
 app.use(cors({
-    origin: 'https://roc-frontend.vercel.app/', // Replace with your frontend URL
+    origin: 'https://roc-frontend.vercel.app', // Replace with your frontend URL
     credentials: true,
 }));
 app.use(express.json());
