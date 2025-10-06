@@ -92,3 +92,28 @@ module.exports.getCaptainsInTheRadius = async (ltd, lng, radius) => {
 
 
 }
+
+module.exports.getRoute = async (origin, destination) => {
+    if (!origin || !destination) {
+        throw new Error('Origin and destination are required');
+    }
+
+    const apiKey = process.env.ORS_API_KEY;
+    // Assuming origin and destination are objects with ltd and lng properties
+    const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${origin.lng},${origin.ltd}&end=${destination.lng},${destination.ltd}`;
+
+    try {
+        const response = await axios.get(url);
+        if (response.data.features && response.data.features.length > 0) {
+            const route = response.data.features[0];
+            // The geometry is in [longitude, latitude] format, so we need to swap it for Leaflet
+            const coordinates = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+            return coordinates;
+        } else {
+            throw new Error('No routes found from ORS');
+        }
+    } catch (err) {
+        console.error('Error fetching route from ORS:', err);
+        throw err;
+    }
+}

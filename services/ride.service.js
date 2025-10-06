@@ -1,4 +1,5 @@
 const rideModel = require('../models/ride.model');
+const Captain = require('../models/captain.model');
 const mapService = require('./maps.service');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -86,19 +87,25 @@ module.exports.confirmRide = async ({
         throw new Error('Ride id is required');
     }
 
+    if (!captain.isAvailable) {
+        throw new Error('Captain is not available');
+    }
+
     const ride = await rideModel.findOneAndUpdate({
-        _id: rideId
+        _id: rideId,
+        status: 'pending'
     }, {
-        status: 'accepted',
+        status: 'confirmed',
         captain: captain._id
     }, { new: true }).populate('user').populate('captain').select('+otp');
 
     if (!ride) {
-        throw new Error('Ride not found');
+        throw new Error('Ride not found or already taken');
     }
 
-    return ride;
+    await Captain.findByIdAndUpdate(captain._id, { isAvailable: false });
 
+    return ride;
 }
 
 module.exports.startRide = async ({ rideId, otp, captain }) => {
@@ -115,19 +122,16 @@ module.exports.startRide = async ({ rideId, otp, captain }) => {
         throw new Error('Ride not found');
     }
 
-    if (ride.status !== 'accepted') {
-        throw new Error('Ride not accepted');
+    if (ride.status !== 'confirmed') {
+        throw new Error('Ride not confirmed');
     }
 
     if (ride.otp !== otp) {
         throw new Error('Invalid OTP');
     }
 
-    await rideModel.findOneAndUpdate({
-        _id: rideId
-    }, {
-        status: 'ongoing'
-    })
+    ride.status = 'started';
+    await ride.save();
 
     return ride;
 }
@@ -137,24 +141,19 @@ module.exports.endRide = async ({ rideId, captain }) => {
         throw new Error('Ride id is required');
     }
 
-    const ride = await rideModel.findOne({
+    const ride = await rideModel.findOneAndUpdate({
         _id: rideId,
-        captain: captain._id
-    }).populate('user').populate('captain').select('+otp');
-
-    if (!ride) {
-        throw new Error('Ride not found');
-    }
-
-    if (ride.status !== 'ongoing') {
-        throw new Error('Ride not ongoing');
-    }
-
-    await rideModel.findOneAndUpdate({
-        _id: rideId
+        captain: captain._id,
+        status: 'started'
     }, {
         status: 'completed'
-    })
+    }, { new: true }).populate('user').populate('captain');
+
+    if (!ride) {
+        throw new Error('Ride not found or not started');
+    }
+
+    await Captain.findByIdAndUpdate(captain._id, { isAvailable: true });
 
     return ride;
 }
@@ -164,24 +163,43 @@ module.exports.cancelRide = async ({ rideId, user }) => {
         throw new Error('Ride id is required');
     }
 
-    const ride = await rideModel.findOne({
+    const ride = await rideModel.findOneAndUpdate({
         _id: rideId,
-        user: user._id
-    }).populate('user').populate('captain');
-
-    if (!ride) {
-        throw new Error('Ride not found');
-    }
-
-    if (ride.status !== 'pending' && ride.status !== 'accepted') {
-        throw new Error('Ride cannot be cancelled');
-    }
-
-    await rideModel.findOneAndUpdate({
-        _id: rideId
+        user: user._id,
+        status: { $in: ['pending', 'confirmed'] }
     }, {
         status: 'cancelled'
-    })
+    }, { new: true }).populate('user').populate('captain');
+
+    if (!ride) {
+        throw new Error('Ride not found or cannot be cancelled');
+    }
+
+    if (ride.captain) {
+        await Captain.findByIdAndUpdate(ride.captain._id, { isAvailable: true });
+    }
+
+    return ride;
+}
+
+module.exports.cancelRideByCaptain = async ({ rideId, captain }) => {
+    if (!rideId) {
+        throw new Error('Ride id is required');
+    }
+
+    const ride = await rideModel.findOneAndUpdate({
+        _id: rideId,
+        captain: captain._id,
+        status: { $in: ['confirmed', 'started'] }
+    }, {
+        status: 'cancelled'
+    }, { new: true }).populate('user').populate('captain');
+
+    if (!ride) {
+        throw new Error('Ride not found or cannot be cancelled');
+    }
+
+    await Captain.findByIdAndUpdate(ride.captain._id, { isAvailable: true });
 
     return ride;
 }

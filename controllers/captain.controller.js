@@ -74,6 +74,26 @@ module.exports.loginCaptain = async (req, res, next) => {
 
     res.cookie('refreshToken', refreshToken, { httpOnly: true, sameSite: 'strict' });
     res.status(200).json({ accessToken, captain });
+
+    // Set captain as available after successful login
+    await captainService.updateCaptainAvailability({ captain: captain, isAvailable: true });
+}
+
+module.exports.updateCaptainAvailability = async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { isAvailable } = req.body;
+
+    try {
+        const updatedCaptain = await captainService.updateCaptainAvailability({ captain: req.captain, isAvailable });
+        res.status(200).json({ captain: updatedCaptain });
+    } catch (error) {
+        console.error('Error updating captain availability:', error);
+        res.status(500).json({ message: 'Error updating availability' });
+    }
 }
 
 module.exports.refreshAccessToken = async (req, res, next) => {
@@ -133,4 +153,9 @@ module.exports.logoutCaptain = async (req, res, next) => {
     res.clearCookie('refreshToken');
 
     res.status(200).json({ message: 'Logout successfully' });
+
+    // Set captain as unavailable after logout
+    if (req.captain) {
+        await captainService.updateCaptainAvailability({ captain: req.captain, isAvailable: false });
+    }
 }

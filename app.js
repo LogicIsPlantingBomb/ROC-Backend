@@ -13,7 +13,7 @@ const rideRoutes = require('./routes/ride.routes');
 connectToDb();
 
 app.use(cors({
-    origin: 'http://localhost:5173', // Replace with your frontend URL
+    origin: 'https://roc-frontend.vercel.app/', // Replace with your frontend URL
     credentials: true,
 }));
 app.use(express.json());
@@ -30,6 +30,10 @@ app.use('/users', userRoutes);
 app.use('/captains', captainRoutes);
 app.use('/maps', mapsRoutes);
 app.use('/rides', rideRoutes);
+app.use('/api/rentals', require('./routes/rental.routes.js'));
+const rideRequestRoutes = require('./routes/rideRequest.routes.js');
+app.use('/ride-requests', rideRequestRoutes);
+
 
 
 

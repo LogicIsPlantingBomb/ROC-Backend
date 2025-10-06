@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middlewares/auth.middleware');
 const mapController = require('../controllers/map.controller');
-const { query } = require('express-validator');
+const { query, body } = require('express-validator');
 
 router.get('/get-coordinates',
     query('address').isString().isLength({ min: 3 }),
@@ -22,6 +22,14 @@ router.get('/get-suggestions',
     authMiddleware.authUser,
     mapController.getAutoCompleteSuggestions
 )
+
+router.post('/mock-location',
+    body('type').isString().isIn(['user', 'captain']),
+    body('id').isString().isLength({ min: 3 }),
+    body('lat').isFloat(),
+    body('lng').isFloat(),
+    mapController.mockLocation
+);
 
 
 

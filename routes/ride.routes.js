@@ -45,6 +45,12 @@ router.post('/cancel-ride',
     rideController.cancelRide
 )
 
+router.post('/cancel-ride-by-captain',
+    authMiddleware.authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride id'),
+    rideController.cancelRideByCaptain
+)
+
 
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require("express-validator")
-const { registerCaptain, loginCaptain, refreshAccessToken, getCaptainProfile, logoutCaptain } = require('../controllers/captain.controller'); // Import individual functions
+const { registerCaptain, loginCaptain, refreshAccessToken, getCaptainProfile, logoutCaptain, updateCaptainAvailability } = require('../controllers/captain.controller'); // Import individual functions
 const { authCaptain } = require('../middlewares/auth.middleware'); // Import authCaptain
 
 router.post('/register', [
@@ -23,5 +23,8 @@ router.post('/login', [
 router.post('/refresh-token', refreshAccessToken); // New route
 router.get('/profile', authCaptain, getCaptainProfile);
 router.post('/logout', authCaptain, logoutCaptain);
+router.post('/update-availability', authCaptain, [
+    body('isAvailable').isBoolean().withMessage('isAvailable must be a boolean')
+], updateCaptainAvailability);
 
 module.exports = router;

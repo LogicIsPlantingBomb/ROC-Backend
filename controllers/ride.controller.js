@@ -1,7 +1,8 @@
 const rideService = require('../services/ride.service');
 const { validationResult } = require('express-validator');
 const mapService = require('../services/maps.service');
-const { sendMessageToSocketId } = require('../socket');
+const captainService = require('../services/captain.service');
+
 const rideModel = require('../models/ride.model');
 
 
@@ -25,22 +26,22 @@ module.exports.createRide = async (req, res) => {
             destinationCoordinates: destinationCoordinates,
             vehicleType: vehicleType
         });
-        res.status(201).json(ride);
 
-        const captainsInRadius = await mapService.getCaptainsInTheRadius(pickupCoordinates.ltd, pickupCoordinates.lng, 2);
-
-        ride.otp = ""
+        const availableCaptains = await captainService.getCaptainsNearby({
+            longitude: pickupCoordinates.lng,
+            latitude: pickupCoordinates.ltd,
+            radius: 50000 // 50km
+        });
 
         const rideWithUser = await rideModel.findOne({ _id: ride._id }).populate('user');
 
-        captainsInRadius.map(captain => {
+        console.log('Available Captains:', availableCaptains.length);
 
-            sendMessageToSocketId(captain.socketId, {
-                event: 'new-ride',
-                data: rideWithUser
-            })
-
+        availableCaptains.map(captain => {
+            console.log('Sending new-ride to captain:', captain._id, 'with socketId:', captain.socketId);
+            req.io.to(captain.socketId).emit('new-ride', rideWithUser);
         })
+        res.status(201).json(ride);
 
     } catch (err) {
 
@@ -80,12 +81,19 @@ module.exports.confirmRide = async (req, res) => {
     try {
         const ride = await rideService.confirmRide({ rideId, captain: req.captain });
 
-        sendMessageToSocketId(ride.user.socketId, {
-            event: 'ride-confirmed',
-            data: ride
-        })
+        const route = await mapService.getRoute(ride.pickupCoordinates, ride.destinationCoordinates);
 
-        return res.status(200).json(ride);
+        const rideWithRoute = { ...ride.toObject(), route };
+
+        const rideForCaptain = { ...rideWithRoute };
+        delete rideForCaptain.otp;
+
+
+        req.io.to(ride.user.socketId).emit('ride-confirmed', rideWithRoute);
+
+        req.io.to(ride.captain.socketId).emit('ride-confirmed', rideForCaptain);
+
+        return res.status(200).json(rideForCaptain);
     } catch (err) {
 
         console.log(err);
@@ -106,10 +114,9 @@ module.exports.startRide = async (req, res) => {
 
         console.log(ride);
 
-        sendMessageToSocketId(ride.user.socketId, {
-            event: 'ride-started',
-            data: ride
-        })
+        req.io.to(ride.user.socketId).emit('ride-started', ride);
+
+        req.io.to(ride.captain.socketId).emit('ride-started', ride);
 
         return res.status(200).json(ride);
     } catch (err) {
@@ -129,6 +136,11 @@ module.exports.endRide = async (req, res) => {
         const ride = await rideService.endRide({ rideId, captain: req.captain });
 
         sendMessageToSocketId(ride.user.socketId, {
+            event: 'ride-ended',
+            data: ride
+        })
+
+        sendMessageToSocketId(ride.captain.socketId, {
             event: 'ride-ended',
             data: ride
         })
@@ -158,6 +170,28 @@ module.exports.cancelRide = async (req, res) => {
                 data: ride
             })
         }
+
+        return res.status(200).json(ride);
+    } catch (err) {
+        return res.status(500).json({ message: err.message });
+    }
+}
+
+module.exports.cancelRideByCaptain = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { rideId } = req.body;
+
+    try {
+        const ride = await rideService.cancelRideByCaptain({ rideId, captain: req.captain });
+
+        sendMessageToSocketId(ride.user.socketId, {
+            event: 'ride-cancelled',
+            data: ride
+        })
 
         return res.status(200).json(ride);
     } catch (err) {

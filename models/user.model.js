@@ -29,7 +29,20 @@ const userSchema = new mongoose.Schema({
     socketId: {
         type: String,
     },
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number],
+            default: [0, 0]
+        }
+    },
 })
+
+userSchema.index({ location: '2dsphere' });
 
 userSchema.methods.generateAuthToken = function () {
     const token = jwt.sign({ _id: this._id }, process.env.JWT_SECRET, { expiresIn: '24h' });

@@ -1,5 +1,7 @@
 const mapService = require('../services/maps.service');
 const { validationResult } = require('express-validator');
+const UserModel = require('../models/user.model');
+const CaptainModel = require('../models/captain.model');
 
 
 module.exports.getCoordinates = async (req, res, next) => {
@@ -61,6 +63,40 @@ module.exports.getAutoCompleteSuggestions = async (req, res, next) => {
         const suggestions = await mapService.getAutoCompleteSuggestions(input);
 
         res.status(200).json(suggestions);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+module.exports.mockLocation = async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { type, id, lat, lng } = req.body;
+
+    try {
+        let model;
+        if (type === 'user') {
+            model = UserModel;
+        } else {
+            model = CaptainModel;
+        }
+
+        const result = await model.findByIdAndUpdate(id, {
+            location: {
+                type: 'Point',
+                coordinates: [lng, lat]
+            }
+        });
+
+        if (!result) {
+            return res.status(404).json({ message: `${type} not found` });
+        }
+
+        res.status(200).json({ message: `${type} location updated` });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal server error' });
