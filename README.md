@@ -10,6 +10,44 @@ Registers a new user by creating a user account with the provided information.
 
 `POST`
 
+### structure
+```
+├── src
+│   ├── App.jsx
+│   ├── components
+│   │   ├── Chatbot.jsx
+│   │   ├── Layout.jsx
+│   │   ├── Navbar.jsx
+│   │   └── ProtectedRoute.jsx
+│   ├── contexts
+│   │   ├── CaptainContext.jsx
+│   │   └── UserContext.jsx
+│   ├── hooks
+│   │   ├── useAuthCaptain.js
+│   │   └── useAuthUser.js
+│   ├── index.css
+│   ├── main.jsx
+│   ├── pages
+│   │   ├── BikeRental
+│   │   │   └── BikeRental.jsx
+│   │   ├── Captain
+│   │   │   ├── CaptainHome.jsx
+│   │   │   ├── CaptainLogin.jsx
+│   │   │   ├── CaptainProfile.jsx
+│   │   │   └── CaptainSignup.jsx
+│   │   ├── Home.jsx
+│   │   └── User
+│   │       ├── UserHome.jsx
+│   │       ├── UserLogin.jsx
+│   │       ├── UserProfile.jsx
+│   │       └── UserSignup.jsx
+│   ├── services
+│   │   └── socket.js
+│   └── utils
+│       └── api.js
+└── vite.config.js
+
+```
 ### Request Body
 
 The request body should be in JSON format and include the following fields:
